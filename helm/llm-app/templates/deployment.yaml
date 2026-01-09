@@ -1,0 +1,66 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: llm-deployment
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app: llm
+  template:
+    metadata:
+      labels:
+        app: llm
+      annotations:
+        rollme: "stableai-v1.14"
+    spec:
+      tolerations:
+        - key: "nvidia.com/gpu"
+          operator: "Exists"
+          effect: "NoSchedule"
+      containers:
+        - name: llm
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: grpc
+              containerPort: {{ .Values.service.grpcPort }}
+            - name: metrics
+              containerPort: {{ .Values.service.metricsPort }}
+
+          startupProbe:
+            tcpSocket:
+              port: {{ .Values.service.grpcPort }}
+            periodSeconds: 5
+            failureThreshold: 120
+
+          readinessProbe:
+            tcpSocket:
+              port: {{ .Values.service.grpcPort }}
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            failureThreshold: 12
+
+          livenessProbe:
+            tcpSocket:
+              port: {{ .Values.service.grpcPort }}
+            initialDelaySeconds: 120
+            periodSeconds: 10
+            failureThreshold: 3
+
+          env:
+            - name: GRPC_PORT
+              value: "{{ .Values.env.grpcPort }}"
+            - name: METRICS_PORT
+              value: "{{ .Values.env.metricsPort }}"
+            - name: MAX_INFLIGHT
+              value: "{{ .Values.env.maxInflight }}"
+
+          resources:
+            requests:
+              cpu: {{ .Values.resources.requests.cpu }}
+              memory: {{ .Values.resources.requests.memory }}
+            limits:
+              cpu: {{ .Values.resources.limits.cpu }}
+              memory: {{ .Values.resources.limits.memory }}
+              nvidia.com/gpu: {{ .Values.resources.limits.gpu }}

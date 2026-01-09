@@ -1,0 +1,25 @@
+{{- if .Values.addons.serviceMonitor.enabled }}
+
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ .Values.addons.serviceMonitor.name }}
+  namespace: {{ .Values.addons.serviceMonitor.namespace }}
+  labels:
+    release: {{ .Values.addons.serviceMonitor.releaseLabel }}
+spec:
+  namespaceSelector:
+    matchNames:
+{{- range .Values.addons.serviceMonitor.namespaceSelector }}
+      - {{ . }}
+{{- end }}
+  selector:
+    matchLabels:
+      {{- toYaml .Values.addons.serviceMonitor.selector | nindent 6 }}
+  endpoints:
+    - port: {{ .Values.addons.serviceMonitor.endpoint.port }}
+      interval: {{ .Values.addons.serviceMonitor.endpoint.interval }}
+      path: {{ .Values.addons.serviceMonitor.endpoint.path }}
+      scheme: {{ .Values.addons.serviceMonitor.endpoint.scheme }}
+
+{{- end }}

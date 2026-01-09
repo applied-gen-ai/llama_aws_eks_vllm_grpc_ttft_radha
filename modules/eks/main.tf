@@ -1,44 +1,52 @@
 # =======================================================
-#  EKS Cluster + Node Group + IAM
+#  EKS Cluster + GPU Node Group + IAM (INFRA ONLY)
 # =======================================================
 
+# -----------------------------
 # EKS Cluster
-resource "aws_eks_cluster" "llm_cluster" {
+# -----------------------------
+resource "aws_eks_cluster" "this" {
   name     = "llm-eks-cluster"
-  role_arn = aws_iam_role.eks_cluster_role.arn
+  role_arn = aws_iam_role.cluster.arn
 
   vpc_config {
     subnet_ids = var.subnet_ids
   }
 
-  depends_on = [aws_iam_role_policy_attachment.eks_cluster_policy]
+  depends_on = [
+    aws_iam_role_policy_attachment.cluster_policy
+  ]
 }
 
-# Node Group
-resource "aws_eks_node_group" "llm_nodes" {
-  cluster_name    = aws_eks_cluster.llm_cluster.name
-  node_group_name = "llm-nodes"
-  node_role_arn   = aws_iam_role.eks_node_role.arn
+# -----------------------------
+# GPU Node Group
+# -----------------------------
+resource "aws_eks_node_group" "gpu" {
+  cluster_name    = aws_eks_cluster.this.name
+  node_group_name = "gpu-nodes"
+  node_role_arn   = aws_iam_role.node.arn
   subnet_ids      = var.subnet_ids
-
-  scaling_config {
-    desired_size = 1
-    min_size     = 1
-    max_size     = 3
-  }
 
   instance_types = ["g5.2xlarge"]
   ami_type       = "AL2023_x86_64_NVIDIA"
   capacity_type  = "ON_DEMAND"
   disk_size      = 100
+
+  scaling_config {
+    min_size     = 1
+    desired_size = 1
+    max_size     = 3
+  }
 }
 
-# IAM Role for Cluster
-resource "aws_iam_role" "eks_cluster_role" {
+# -----------------------------
+# IAM Role - Cluster
+# -----------------------------
+resource "aws_iam_role" "cluster" {
   name = "eks-cluster-role"
 
   assume_role_policy = jsonencode({
-    Version = "2012-10-17",
+    Version = "2012-10-17"
     Statement = [{
       Effect    = "Allow"
       Principal = { Service = "eks.amazonaws.com" }
@@ -47,17 +55,19 @@ resource "aws_iam_role" "eks_cluster_role" {
   })
 }
 
-resource "aws_iam_role_policy_attachment" "eks_cluster_policy" {
-  role       = aws_iam_role.eks_cluster_role.name
+resource "aws_iam_role_policy_attachment" "cluster_policy" {
+  role       = aws_iam_role.cluster.name
   policy_arn = "arn:aws:iam::aws:policy/AmazonEKSClusterPolicy"
 }
 
-# IAM Role for Nodes
-resource "aws_iam_role" "eks_node_role" {
+# -----------------------------
+# IAM Role - Nodes
+# -----------------------------
+resource "aws_iam_role" "node" {
   name = "eks-node-role"
 
   assume_role_policy = jsonencode({
-    Version = "2012-10-17",
+    Version = "2012-10-17"
     Statement = [{
       Effect    = "Allow"
       Principal = { Service = "ec2.amazonaws.com" }
@@ -66,39 +76,17 @@ resource "aws_iam_role" "eks_node_role" {
   })
 }
 
-resource "aws_iam_role_policy_attachment" "eks_node_policy" {
-  role       = aws_iam_role.eks_node_role.name
+resource "aws_iam_role_policy_attachment" "node_worker" {
+  role       = aws_iam_role.node.name
   policy_arn = "arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy"
 }
 
-resource "aws_iam_role_policy_attachment" "eks_node_cni_policy" {
-  role       = aws_iam_role.eks_node_role.name
+resource "aws_iam_role_policy_attachment" "node_cni" {
+  role       = aws_iam_role.node.name
   policy_arn = "arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy"
 }
 
-resource "aws_iam_role_policy_attachment" "eks_node_ecr_readonly" {
-  role       = aws_iam_role.eks_node_role.name
+resource "aws_iam_role_policy_attachment" "node_ecr" {
+  role       = aws_iam_role.node.name
   policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly"
-}
-
-# Kubernetes Provider
-data "aws_eks_cluster" "eks" {
-  name = aws_eks_cluster.llm_cluster.name
-}
-
-data "aws_eks_cluster_auth" "eks" {
-  name = aws_eks_cluster.llm_cluster.name
-}
-
-provider "kubernetes" {
-  host                   = data.aws_eks_cluster.eks.endpoint
-  cluster_ca_certificate = base64decode(data.aws_eks_cluster.eks.certificate_authority[0].data)
-  token                  = data.aws_eks_cluster_auth.eks.token
-}
-
-# OIDC Provider for IRSA
-resource "aws_iam_openid_connect_provider" "eks" {
-  client_id_list  = ["sts.amazonaws.com"]
-  thumbprint_list = ["9e99a48a9960b14926bb7f3b02e22da0ecd4e0f8"]
-  url             = data.aws_eks_cluster.eks.identity[0].oidc[0].issuer
 }

@@ -1,3 +1,5 @@
+{{- if .Values.addons.prometheusAdapter.enabled }}
+
 # ============================================================
 # FILE: /k8s-addons/prometheus-adapter-base.yaml
 # PURPOSE: Core infrastructure — Namespace, RBAC, Service, APIService
@@ -9,7 +11,7 @@
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: custom-metrics
+  name: {{ .Values.addons.prometheusAdapter.namespace }}
 
 # ============================================================
 # RBAC
@@ -19,7 +21,7 @@ apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: prometheus-adapter
-  namespace: custom-metrics
+  namespace: {{ .Values.addons.prometheusAdapter.namespace }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
@@ -52,7 +54,7 @@ roleRef:
 subjects:
   - kind: ServiceAccount
     name: prometheus-adapter
-    namespace: custom-metrics
+    namespace: {{ .Values.addons.prometheusAdapter.namespace }}
 
 # ============================================================
 # SERVICE
@@ -62,11 +64,11 @@ apiVersion: v1
 kind: Service
 metadata:
   name: prometheus-adapter
-  namespace: custom-metrics
+  namespace: {{ .Values.addons.prometheusAdapter.namespace }}
 spec:
   ports:
-    - port: 443
-      targetPort: 6443
+    - port: {{ .Values.addons.prometheusAdapter.service.port }}
+      targetPort: {{ .Values.addons.prometheusAdapter.service.targetPort }}
       name: https
   selector:
     app: prometheus-adapter
@@ -82,7 +84,7 @@ metadata:
 spec:
   service:
     name: prometheus-adapter
-    namespace: custom-metrics
+    namespace: {{ .Values.addons.prometheusAdapter.namespace }}
   group: custom.metrics.k8s.io
   version: v1beta1
   insecureSkipTLSVerify: true
@@ -105,7 +107,7 @@ roleRef:
 subjects:
   - kind: ServiceAccount
     name: prometheus-adapter
-    namespace: custom-metrics
+    namespace: {{ .Values.addons.prometheusAdapter.namespace }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
@@ -117,3 +119,5 @@ rules:
     resources: ["configmaps"]
     resourceNames: ["extension-apiserver-authentication"]
     verbs: ["get", "list", "watch"]
+
+{{- end }}

@@ -1,0 +1,74 @@
+{{- if .Values.addons.prometheus.enabled }}
+
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: {{ .Values.addons.prometheus.namespace }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-config
+  namespace: {{ .Values.addons.prometheus.namespace }}
+data:
+  prometheus.yml: |
+    global:
+      scrape_interval: {{ .Values.addons.prometheus.scrapeInterval }}
+    scrape_configs:
+{{- range .Values.addons.prometheus.scrapeConfigs }}
+      - job_name: {{ .jobName | quote }}
+        metrics_path: {{ .metricsPath }}
+        static_configs:
+          - targets: 
+{{- range .targets }}
+            - {{ . | quote }}
+{{- end }}
+{{- end }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: prometheus
+  namespace: {{ .Values.addons.prometheus.namespace }}
+spec:
+  replicas: {{ .Values.addons.prometheus.replicas }}
+  selector:
+    matchLabels:
+      app: prometheus
+  template:
+    metadata:
+      labels:
+        app: prometheus
+    spec:
+      containers:
+        - name: prometheus
+          image: "{{ .Values.addons.prometheus.image.repository }}:{{ .Values.addons.prometheus.image.tag }}"
+          args:
+            - "--config.file=/etc/prometheus/prometheus.yml"
+          ports:
+            - containerPort: {{ .Values.addons.prometheus.service.targetPort }}
+          volumeMounts:
+            - name: config
+              mountPath: /etc/prometheus
+          {{- if .Values.addons.prometheus.resources }}
+          resources:
+            {{- toYaml .Values.addons.prometheus.resources | nindent 12 }}
+          {{- end }}
+      volumes:
+        - name: config
+          configMap:
+            name: prometheus-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: prometheus
+  namespace: {{ .Values.addons.prometheus.namespace }}
+spec:
+  ports:
+    - port: {{ .Values.addons.prometheus.service.port }}
+      targetPort: {{ .Values.addons.prometheus.service.targetPort }}
+  selector:
+    app: prometheus
+
+{{- end }}

@@ -1,0 +1,28 @@
+replicaCount: 1
+
+image:
+  repository: "826695974453.dkr.ecr.us-east-1.amazonaws.com/llm-grpc-api:latest"
+  tag: latest
+  pullPolicy: IfNotPresent
+
+service:
+  name: llm-service
+  type: LoadBalancer
+  grpcPort: 50051
+  metricsPort: 8000
+
+resources:
+  requests:
+    cpu: "4"
+    memory: "16Gi"
+  limits:
+    cpu: "6"
+    memory: "24Gi"
+    gpu: 1
+
+env:
+  grpcPort: "50051"
+  metricsPort: "8000"
+  maxInflight: "384"
+
+

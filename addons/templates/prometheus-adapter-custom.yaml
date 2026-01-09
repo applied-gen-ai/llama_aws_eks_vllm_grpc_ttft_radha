@@ -1,3 +1,5 @@
+{{- if .Values.addons.prometheusAdapter.enabled }}
+
 # ============================================================
 # FILE: /k8s-addons/prometheus-adapter-custom.yaml
 # PURPOSE: Customizable behavior — ConfigMap rules and Deployment
@@ -11,43 +13,24 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: adapter-config
-  namespace: custom-metrics
+  namespace: {{ .Values.addons.prometheusAdapter.namespace }}
 data:
   config.yaml: |
     rules:
-      - seriesQuery: 'llm_request_queue_length{job="vllm"}'
+{{- range .Values.addons.prometheusAdapter.rules }}
+      - seriesQuery: {{ .seriesQuery | quote }}
         resources:
           overrides:
-            pod:
-              resource: pod
-            namespace:
-              resource: namespace
+{{- range $key, $value := .resources.overrides }}
+            {{ $key }}:
+              resource: {{ $value }}
+{{- end }}
         name:
-          matches: "llm_request_queue_length"
-          as: "llm_request_queue_length"
-        metricsQuery: 'avg(llm_request_queue_length{job="vllm"}) by (namespace, pod)'
+          matches: {{ .name.matches | quote }}
+          as: {{ .name.as | quote }}
+        metricsQuery: {{ .metricsQuery | quote }}
+{{- end }}
 
-
-
-
-# apiVersion: v1
-# kind: ConfigMap
-# metadata:
-#   name: adapter-config
-#   namespace: custom-metrics
-# data:
-#   config.yaml: |
-#     rules:
-#       # Customize this section if you add or change metric mappings
-#       - seriesQuery: 'llm_request_queue_length{job="vllm"}'
-#         resources:
-#           overrides:
-#             instance:
-#               resource: pod
-#         name:
-#           matches: "llm_request_queue_length"
-#           as: "llm_request_queue_length"
-#         metricsQuery: 'avg(llm_request_queue_length{job="vllm"}) by (<<.GroupBy>>)'
 # ============================================================
 # DEPLOYMENT (Prometheus Adapter runtime configuration)
 # ============================================================
@@ -56,7 +39,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: prometheus-adapter
-  namespace: custom-metrics
+  namespace: {{ .Values.addons.prometheusAdapter.namespace }}
 spec:
   selector:
     matchLabels:
@@ -69,16 +52,13 @@ spec:
       serviceAccountName: prometheus-adapter
       containers:
         - name: prometheus-adapter
-          image: registry.k8s.io/prometheus-adapter/prometheus-adapter:v0.10.0
+          image: "{{ .Values.addons.prometheusAdapter.image.repository }}:{{ .Values.addons.prometheusAdapter.image.tag }}"
           args:
-            #  Update this URL if your Prometheus service name or namespace changes
-            - "--prometheus-url=http://prometheus.monitoring.svc.cluster.local:9090"
-            #  Change this if you want to adjust how often metrics are reloaded
-            - "--metrics-relist-interval=30s"
-            #  Adjust log verbosity (0–10)
-            - "--v=4"
+            - "--prometheus-url={{ .Values.addons.prometheusAdapter.prometheusUrl }}"
+            - "--metrics-relist-interval={{ .Values.addons.prometheusAdapter.metricsRelistInterval }}"
+            - "--v={{ .Values.addons.prometheusAdapter.logVerbosity }}"
             - "--config=/etc/adapter/config.yaml"
-            - "--secure-port=6443"
+            - "--secure-port={{ .Values.addons.prometheusAdapter.service.targetPort }}"
           volumeMounts:
             - name: config
               mountPath: /etc/adapter
@@ -95,3 +75,5 @@ spec:
           emptyDir: {}
         - name: tmp-dir
           emptyDir: {}
+
+{{- end }}
