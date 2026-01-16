@@ -1,19 +1,13 @@
 {{- if .Values.addons.prometheusAdapter.enabled }}
 
 # ============================================================
-# FILE: /k8s-addons/prometheus-adapter-custom.yaml
-# PURPOSE: Customizable behavior — ConfigMap rules and Deployment
+# CONFIGMAP
 # ============================================================
-
-# ============================================================
-# CONFIGMAP (metric mapping logic)
-# ============================================================
-
 apiVersion: v1
 kind: ConfigMap
 metadata:
   name: adapter-config
-  namespace: {{ .Values.addons.prometheusAdapter.namespace }}
+  namespace: {{ .Release.Namespace }}
 data:
   config.yaml: |
     rules:
@@ -31,15 +25,15 @@ data:
         metricsQuery: {{ .metricsQuery | quote }}
 {{- end }}
 
-# ============================================================
-# DEPLOYMENT (Prometheus Adapter runtime configuration)
-# ============================================================
 ---
+# ============================================================
+# DEPLOYMENT
+# ============================================================
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: prometheus-adapter
-  namespace: {{ .Values.addons.prometheusAdapter.namespace }}
+  namespace: {{ .Release.Namespace }}
 spec:
   selector:
     matchLabels:

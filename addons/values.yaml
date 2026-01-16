@@ -2,39 +2,15 @@
 addons:
   dcgmExporter:
     enabled: true
-    namespace: kube-system
     port: 9400
     image:
       repository: nvcr.io/nvidia/k8s/dcgm-exporter
       tag: 3.3.5-3.4.0-ubuntu22.04
 
 
-# Metrics-server
-  metricsServer:
-    enabled: true
-    namespace: kube-system
-    image:
-      repository: registry.k8s.io/metrics-server/metrics-server
-      tag: v0.7.0
-      pullPolicy: IfNotPresent
-    args:
-      - --cert-dir=/tmp
-      - --secure-port=10250
-      - --kubelet-preferred-address-types=InternalIP,ExternalIP,Hostname
-      - --kubelet-use-node-status-port
-      - --metric-resolution=15s
-    resources:
-      requests:
-        cpu: 100m
-        memory: 200Mi
-      limits:
-        cpu: 100m
-        memory: 200Mi
-
 # NVIDIA Device Plugin
   nvidiaDevicePlugin:
     enabled: true
-    namespace: kube-system
     image:
       repository: nvcr.io/nvidia/k8s-device-plugin
       tag: v0.16.2
@@ -43,7 +19,6 @@ addons:
 # Prometheus Adapter
   prometheusAdapter:
     enabled: true
-    namespace: custom-metrics
     service:
       port: 443
       targetPort: 6443
@@ -64,47 +39,18 @@ addons:
           as: "llm_request_queue_length"
         metricsQuery: 'avg(llm_request_queue_length{job="vllm"}) by (namespace, pod)'
 
-# Prometheus
-  prometheus:
-    enabled: true
-    namespace: monitoring
-    replicas: 1
-    scrapeInterval: "5s"
-    image:
-      repository: prom/prometheus
-      tag: v2.53.0
-    service:
-      port: 9090
-      targetPort: 9090
-    resources:
-      requests:
-        cpu: 500m
-        memory: 512Mi
-      limits:
-        cpu: 1
-        memory: 1Gi
-    scrapeConfigs:
-      - jobName: "vllm"
-        metricsPath: /metrics
-        targets:
-          - "llm-service.default.svc.cluster.local:8000"
-      - jobName: "dcgm"
-        metricsPath: /metrics
-        targets:
-          - "dcgm-exporter.kube-system.svc.cluster.local:9400"
 
 # ServiceMonitor for LLM metrics
   serviceMonitor:
     enabled: true
     name: llm-metrics
-    namespace: custom-metrics
     releaseLabel: prometheus
     namespaceSelector:
-      - default
+      - llm
     selector:
       app: llm
     endpoint:
       port: metrics
-      interval: 5s
+      interval: 15s
       path: /metrics
       scheme: http

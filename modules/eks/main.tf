@@ -43,7 +43,7 @@ resource "aws_eks_node_group" "gpu" {
 # IAM Role - Cluster
 # -----------------------------
 resource "aws_iam_role" "cluster" {
-  name = "eks-cluster-role"
+  name = "eks-cluster-role-llm"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -64,7 +64,7 @@ resource "aws_iam_role_policy_attachment" "cluster_policy" {
 # IAM Role - Nodes
 # -----------------------------
 resource "aws_iam_role" "node" {
-  name = "eks-node-role"
+  name = "eks-node-role-llm"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"

@@ -4,7 +4,7 @@ apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
 metadata:
   name: {{ .Values.addons.serviceMonitor.name }}
-  namespace: {{ .Values.addons.serviceMonitor.namespace }}
+  namespace: {{ .Release.Namespace }}
   labels:
     release: {{ .Values.addons.serviceMonitor.releaseLabel }}
 spec:
@@ -15,7 +15,7 @@ spec:
 {{- end }}
   selector:
     matchLabels:
-      {{- toYaml .Values.addons.serviceMonitor.selector | nindent 6 }}
+{{ toYaml .Values.addons.serviceMonitor.selector | indent 6 }}
   endpoints:
     - port: {{ .Values.addons.serviceMonitor.endpoint.port }}
       interval: {{ .Values.addons.serviceMonitor.endpoint.interval }}
